@@ -6,7 +6,7 @@ import jax
 jax.config.update('jax_enable_x64', True) # controls the floating point precision
 from nam import *
 
-data = pd.read_csv("nam_data.csv", delimiter=";", decimal=",")
+data = pd.read_csv("excel_with_defaults.csv", delimiter=";", decimal=",")
 data["date"] = pd.to_datetime(data["date"], dayfirst=True)
 
 initial_state = jax.tree.map(jnp.asarray, {"s": 0.,"u": 5, "l": 100., "qr1": 0.43, "qr2": 0, "bf": 0.86})
