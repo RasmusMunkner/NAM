@@ -1,15 +1,20 @@
 import jax
 from jax import numpy as jnp
 
-from nam import condition
-from parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
+from nam.utils import condition
+from nam.parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
 
 
 def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
     """Step the NAM_plus model forward once.
 
-    Goal is to compte:
+    Goal is to compute:
     (s_in, u_in, l_in, qr1_in, qr2_in, bf_in) -> (s_out, u_out, l_out, qr1_out, qr2_out, bf_out)
+
+    Compared to nam_excel, this function has several benefits:
+    - handles snow/rain distribution consistently
+    - evaporation and interflow always depend on all available water at a given timestep
+    - excess surface water is routed as overflow rather than infiltrating the lower zone and breaking the max value
 
     """
     # Decide if precipitation is rain or snow
@@ -22,24 +27,22 @@ def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tupl
     # Settle surface water budget
     u = state.u_ratio * params.u_max
     u_budget = u + rain + snowmelt  # total water available after rain+snowmelt
-    u_budget_no_rain = u + snowmelt  # total water available, discounting rain
 
-    e_p = jnp.minimum(u_budget, obs.epot)  # Follows excel, but I think it should include rain
+    e_p = jnp.minimum(u_budget, obs.epot)
     u_budget -= e_p
-    e_a = jnp.minimum(state.l_ratio * obs.epot, obs.epot - e_p) # only sensible for obs.epot < state.l
 
     q_interflow = params.ckif * condition(state.l_ratio, params.tif) * u_budget
-    q_interflow = jnp.minimum(q_interflow, u_budget - e_p)  # See above
     u_budget -= q_interflow
 
     excess = jnp.maximum(0, u_budget - params.u_max)
-    q_overflow = params.cqof * condition(state.l_ratio, params.tof) * excess
     u_ratio_out = (u_budget - excess) / params.u_max
 
     # Settle lower zone budget
-    l_budget = (state.l_ratio * params.l_max - e_a) + (excess - q_overflow)
-    percolation = (excess - q_overflow) * condition(state.l_ratio, params.tg)
-    l_budget -= percolation
+    q_overflow = params.cqof * condition(state.l_ratio, params.tof) * excess
+    percolation = condition(state.l_ratio, params.tg) * (excess - q_overflow)
+    l_budget = state.l_ratio * params.l_max + (excess - q_overflow - percolation)
+    e_a = jnp.minimum(jnp.minimum(state.l_ratio * obs.epot, obs.epot - e_p), l_budget)
+    l_budget -= e_a
     l_excess = jnp.maximum(0, l_budget - params.l_max)
     q_overflow += l_excess
     l_budget -= l_excess
@@ -55,3 +58,47 @@ def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tupl
 
     # Return
     return NAM_State(s_out, u_ratio_out, l_ratio_out, qr1_out, qr2_out, bf_out), qsim
+
+
+def predict(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
+    def scan_step(state, obs_t):
+        state, qsim = step(params, state, obs_t)
+        return state, qsim
+
+    obs_seq = NAM_Observation(obs.p, obs.epot, obs.t)
+
+    final_state, qsim = jax.lax.scan(
+        scan_step,
+        state,
+        obs_seq
+    )
+    return final_state, qsim
+
+
+def predict_debug(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
+    qq = []
+    for i in range(len(obs.p)):
+        state, q = step(params, state, NAM_Observation(obs.p[i], obs.epot[i], obs.t[i]))
+        qq.append(q)
+    return state, jnp.asarray(qq)
+
+
+def mse(
+        params_trainable: dict[str, jnp.ndarray],
+        state_trainable: dict[str, jnp.ndarray],
+        params_fixed: dict[str, jnp.ndarray],
+        state_fixed: dict[str, jnp.ndarray],
+        obs: NAM_Observation,
+        target: jnp.ndarray,
+) -> jnp.ndarray:
+
+    params_train = to_physical(params_trainable)
+    params_fix = params_fixed
+    state_train = to_physical(state_trainable)
+    state_fix = state_fixed
+
+    params = NAM_Parameters(**{**params_fix, **params_train})
+    state = NAM_State(**{**state_fix, **state_train})
+
+    _, pred = predict(params, state, obs)
+    return jnp.mean(jnp.square(pred - target))

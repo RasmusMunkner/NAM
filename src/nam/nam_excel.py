@@ -1,6 +1,7 @@
 import jax
 from jax import numpy as jnp
 
+from nam.utils import condition
 from nam.parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
     
 def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
@@ -15,7 +16,7 @@ def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tupl
     
     """
     # Decide if precipitation is rain or snow
-    rain, snow = obs.p * (obs.t > 0), obs.p * (obs.t < 0) # Replicates excel, but likely a mistake with no weak inequality
+    rain, snow = obs.p * (obs.t > 0), obs.p * (obs.t < 0) # Note the mistake for t=0. This replicates excel behaviour
     
     # Settle snow budget
     snowmelt = jnp.maximum(0, jnp.minimum(params.c_snow*obs.t, state.s))
@@ -55,10 +56,6 @@ def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tupl
     return NAM_State(s_out, u_ratio_out, l_ratio_out, qr1_out, qr2_out, bf_out), qsim
 
 
-def condition(saturation: jnp.ndarray, threshold: jnp.ndarray) -> jnp.ndarray:
-    return (saturation - threshold) / (1 - threshold) * (saturation > threshold)
-
-
 def predict(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
     def scan_step(state, obs_t):
         state, qsim = step(params, state, obs_t)
@@ -74,6 +71,14 @@ def predict(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> t
     return final_state, qsim
 
 
+def predict_debug(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
+    qq = []
+    for i in range(len(obs.p)):
+        state, q = step(params, state, NAM_Observation(obs.p[i], obs.epot[i], obs.t[i]))
+        qq.append(q)
+    return state, jnp.asarray(qq)
+
+
 def mse(
     params_trainable: dict[str, jnp.ndarray],
     state_trainable: dict[str, jnp.ndarray],
@@ -82,13 +87,6 @@ def mse(
     obs: NAM_Observation,
     target: jnp.ndarray,
 ) -> jnp.ndarray:
-    """Compute the loss for the NAM model.
-    
-    Notes:
-    ----------
-        The trainable parameters are expected to be provided in unconstrained space.
-    """
-
     params_train = to_physical(params_trainable)
     params_fix   = params_fixed
     state_train  = to_physical(state_trainable)
