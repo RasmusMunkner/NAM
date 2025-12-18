@@ -60,7 +60,27 @@ def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tupl
     return NAM_State(s_out, u_ratio_out, l_ratio_out, qr1_out, qr2_out, bf_out), qsim
 
 
-def predict(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
+def predict(
+    params_trainable: dict[str, jnp.ndarray],
+    state_trainable: dict[str, jnp.ndarray],
+    params_fixed: dict[str, jnp.ndarray],
+    state_fixed: dict[str, jnp.ndarray],
+    obs: NAM_Observation
+) -> jnp.ndarray:
+    """Compute the loss for the NAM model.
+    
+    Notes:
+    ----------
+        The trainable parameters are expected to be provided in unconstrained space.
+    """
+    params_train = to_physical(params_trainable)
+    params_fix   = params_fixed
+    state_train  = to_physical(state_trainable)
+    state_fix    = state_fixed
+
+    params = NAM_Parameters(**{**params_fix, **params_train})
+    state  = NAM_State(**{**state_fix, **state_train})
+    
     def scan_step(state, obs_t):
         state, qsim = step(params, state, obs_t)
         return state, qsim
@@ -72,7 +92,7 @@ def predict(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> t
         state,
         obs_seq
     )
-    return final_state, qsim
+    return qsim
 
 
 def predict_debug(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
