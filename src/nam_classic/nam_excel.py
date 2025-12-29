@@ -1,8 +1,8 @@
 import jax
 from jax import numpy as jnp
 
-from nam.utils import condition
-from nam.parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
+from nam_classic.utils import condition
+from nam_classic.parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
     
 def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
     """Step the NAM model forward once.
@@ -50,13 +50,27 @@ def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tupl
     bf_out = state.bf * params.ckbf + percolation * (1-params.ckbf) * params.c_area
     
     # Calculate simulated discharge
-    qsim = (qr2_out + bf_out) * params.area / 86.4 # params.area rescaled from mm/d to m3/d. In the excel sheet, they also divide by 86.4 for some reason
+    qsim = (qr2_out + bf_out) * params.area / 86.4 # params.area rescaled from mm/d to m3/s. Note the /86.4 handles the time rescaling.
     
     # Return
     return NAM_State(s_out, u_ratio_out, l_ratio_out, qr1_out, qr2_out, bf_out), qsim
 
 
-def predict(
+def predict(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
+
+    def scan_step(state_t, obs_t):
+        state_tp1, qsim_t = step(params, state_t, obs_t)
+        return state_tp1, qsim_t
+
+    final_state, qsim = jax.lax.scan(
+        scan_step,
+        state,
+        obs
+    )
+    return final_state, qsim
+
+
+def predict_wrapper(
     params_trainable: dict[str, jnp.ndarray],
     state_trainable: dict[str, jnp.ndarray],
     params_fixed: dict[str, jnp.ndarray],
@@ -76,18 +90,8 @@ def predict(
 
     params = NAM_Parameters(**{**params_fix, **params_train})
     state  = NAM_State(**{**state_fix, **state_train})
-    
-    def scan_step(state, obs_t):
-        state, qsim = step(params, state, obs_t)
-        return state, qsim
 
-    obs_seq = NAM_Observation(obs.p, obs.epot, obs.t)
-
-    final_state, qsim = jax.lax.scan(
-        scan_step,
-        state,
-        obs_seq
-    )
+    final_state, qsim = predict(params, state, obs)
     return qsim
 
 
@@ -107,15 +111,7 @@ def mse(
     obs: NAM_Observation,
     target: jnp.ndarray,
 ) -> jnp.ndarray:
-    params_train = to_physical(params_trainable)
-    params_fix   = params_fixed
-    state_train  = to_physical(state_trainable)
-    state_fix    = state_fixed
-
-    params = NAM_Parameters(**{**params_fix, **params_train})
-    state  = NAM_State(**{**state_fix, **state_train})
-
-    _, pred = predict(params, state, obs)
+    pred = predict_wrapper(params_trainable,state_trainable, params_fixed, state_fixed, obs)
     return jnp.mean(jnp.square(pred - target))
 
 

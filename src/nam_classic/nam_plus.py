@@ -1,8 +1,8 @@
 import jax
 from jax import numpy as jnp
 
-from nam.utils import condition
-from nam.parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
+from nam_classic.utils import condition
+from nam_classic.parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
 
 
 def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
@@ -12,7 +12,7 @@ def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tupl
     (s_in, u_in, l_in, qr1_in, qr2_in, bf_in) -> (s_out, u_out, l_out, qr1_out, qr2_out, bf_out)
 
     Compared to nam_excel, this function has several benefits:
-    - handles snow/rain distribution consistently
+    - handles snow/rain distribution consistently at exactly 0 degrees.
     - evaporation and interflow always depend on all available water at a given timestep
     - excess surface water is routed as overflow rather than infiltrating the lower zone and breaking the max value
 
@@ -104,21 +104,12 @@ def predict_debug(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation
 
 
 def mse(
-        params_trainable: dict[str, jnp.ndarray],
-        state_trainable: dict[str, jnp.ndarray],
-        params_fixed: dict[str, jnp.ndarray],
-        state_fixed: dict[str, jnp.ndarray],
-        obs: NAM_Observation,
-        target: jnp.ndarray,
+    params_trainable: dict[str, jnp.ndarray],
+    state_trainable: dict[str, jnp.ndarray],
+    params_fixed: dict[str, jnp.ndarray],
+    state_fixed: dict[str, jnp.ndarray],
+    obs: NAM_Observation,
+    target: jnp.ndarray,
 ) -> jnp.ndarray:
-
-    params_train = to_physical(params_trainable)
-    params_fix = params_fixed
-    state_train = to_physical(state_trainable)
-    state_fix = state_fixed
-
-    params = NAM_Parameters(**{**params_fix, **params_train})
-    state = NAM_State(**{**state_fix, **state_train})
-
-    _, pred = predict(params, state, obs)
+    pred = predict(params_trainable,state_trainable, params_fixed, state_fixed, obs)
     return jnp.mean(jnp.square(pred - target))

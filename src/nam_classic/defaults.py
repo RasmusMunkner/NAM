@@ -2,7 +2,7 @@ from importlib.resources import files
 from jax import numpy as jnp
 import numpy as np
 import pandas as pd
-from nam.parameters import NAM_Parameters, NAM_Observation, NAM_State, pack_params
+from nam_classic.parameters import NAM_Parameters, NAM_Observation, NAM_State, pack_params
 
 # Reference state/params for testing
 default_state = NAM_State(**pack_params(s=0, qr2=0, u_ratio=1., l_ratio=1., qr1=0.43, bf=0.86))
@@ -30,13 +30,13 @@ default_params_space = {
     "tif": (0, 0.9),
     "tof": (0, 0.9),
     "tg": (0, 0.9),
-    "ck1": (np.exp(-1/10), np.exp(-1/10)),
+    "ck1": (np.exp(-10), np.exp(-1/10)),
     "ck2": (0,0),
     "ckbf": (np.exp(-1/20),np.exp(-1/700)),
 }
 
 # Reference data for testing
-_path_to_excel_reference = files("nam.data").joinpath("excel_with_defaults.csv")
+_path_to_excel_reference = files("nam_classic.data").joinpath("nam_excel_default_results.csv")
 excel_results = pd.read_csv(_path_to_excel_reference, delimiter=";", decimal=",")
 excel_results["date"] = pd.to_datetime(excel_results["date"], dayfirst=True)
 
