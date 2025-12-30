@@ -1,9 +1,9 @@
 import jax
 from jax import numpy as jnp
 from nested_resevoirs.parameters import NRParameters, NRState
-from nam_classic.parameters import NAM_Observation
+from data import Observation
 
-def step(params: NRParameters, state: NRState, obs: NAM_Observation) -> tuple[NRState, jnp.ndarray]:
+def step(params: NRParameters, state: NRState, obs: Observation) -> tuple[NRState, jnp.ndarray]:
 
     # Step 0: Initialize budgets
     snow_budget = state.snow
@@ -67,7 +67,7 @@ def step(params: NRParameters, state: NRState, obs: NAM_Observation) -> tuple[NR
     return NRState(snow_budget, surface_budget, subsurface_budget, groundwater_budget), flow_budget
 
 
-def predict(params: NRParameters, state: NRState, obs: NAM_Observation) -> tuple[NRState, jnp.ndarray]:
+def predict(params: NRParameters, state: NRState, obs: Observation) -> tuple[NRState, jnp.ndarray]:
 
     def scan_step(state_t, obs_t):
         state_tp1, qsim_t = step(params, state_t, obs_t)
@@ -81,7 +81,7 @@ def predict(params: NRParameters, state: NRState, obs: NAM_Observation) -> tuple
     return final_state, qsim
 
 
-def mse(params: NRParameters, state: NRState, obs: NAM_Observation, target: jnp.ndarray) -> jnp.ndarray:
+def mse(params: NRParameters, state: NRState, obs: Observation, target: jnp.ndarray) -> jnp.ndarray:
     _, prediction = predict(params, state, obs)
     return jnp.mean(jnp.square(prediction - target))
 

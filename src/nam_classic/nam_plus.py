@@ -2,10 +2,11 @@ import jax
 from jax import numpy as jnp
 
 from nam_classic.utils import condition
-from nam_classic.parameters import NAM_Parameters, NAM_State, NAM_Observation, to_physical
+from nam_classic.parameters import NAM_Parameters, NAM_State, to_physical
+from data import Observation
 
 
-def step(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
+def step(params: NAM_Parameters, state: NAM_State, obs: Observation) -> tuple[NAM_State, jnp.ndarray]:
     """Step the NAM_plus model forward once.
 
     Goal is to compute:
@@ -65,7 +66,7 @@ def predict(
     state_trainable: dict[str, jnp.ndarray],
     params_fixed: dict[str, jnp.ndarray],
     state_fixed: dict[str, jnp.ndarray],
-    obs: NAM_Observation
+    obs: Observation
 ) -> jnp.ndarray:
     """Compute the loss for the NAM model.
     
@@ -85,7 +86,7 @@ def predict(
         state, qsim = step(params, state, obs_t)
         return state, qsim
 
-    obs_seq = NAM_Observation(obs.p, obs.epot, obs.t)
+    obs_seq = Observation(obs.p, obs.epot, obs.t)
 
     final_state, qsim = jax.lax.scan(
         scan_step,
@@ -95,10 +96,10 @@ def predict(
     return qsim
 
 
-def predict_debug(params: NAM_Parameters, state: NAM_State, obs: NAM_Observation) -> tuple[NAM_State, jnp.ndarray]:
+def predict_debug(params: NAM_Parameters, state: NAM_State, obs: Observation) -> tuple[NAM_State, jnp.ndarray]:
     qq = []
     for i in range(len(obs.p)):
-        state, q = step(params, state, NAM_Observation(obs.p[i], obs.epot[i], obs.t[i]))
+        state, q = step(params, state, Observation(obs.p[i], obs.epot[i], obs.t[i]))
         qq.append(q)
     return state, jnp.asarray(qq)
 
@@ -108,7 +109,7 @@ def mse(
     state_trainable: dict[str, jnp.ndarray],
     params_fixed: dict[str, jnp.ndarray],
     state_fixed: dict[str, jnp.ndarray],
-    obs: NAM_Observation,
+    obs: Observation,
     target: jnp.ndarray,
 ) -> jnp.ndarray:
     pred = predict(params_trainable,state_trainable, params_fixed, state_fixed, obs)
