@@ -27,3 +27,10 @@ observations = HydroObservation(
     t = jnp.array(timeseries["temperature"]),
 )
 discharge = jnp.array(timeseries["discharge"]).reshape(-1,1)
+
+# Compute observations converted to the same unit as discharge (m3/s)
+observations_m3s = HydroObservation(
+    p = jnp.array(timeseries["precipitation"]) * 1055 / 86.4,
+    epot = jnp.array(timeseries["epot"]) * 1055 / 86.4,
+    t = jnp.array(timeseries["temperature"]),
+)

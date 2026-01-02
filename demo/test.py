@@ -1,6 +1,10 @@
-from jax import numpy as jnp
-from matplotlib import pyplot as plt
-from nam_classic import nam_plus
-from nam_classic import excel_with_defaults, example_state, example_params, example_observations
+from nested_resevoirs import nested_resevoirs_hydro_api
+import optax
+import data
 
-final_state, pred = nam_plus.predict_debug(example_params, example_state, example_observations)
+params_nr = nested_resevoirs_hydro_api.NRParameters.sample(shape=(5,))
+model_nr = nested_resevoirs_hydro_api.NestedResevoirs(params=params_nr, optimizer=optax.sgd(learning_rate=0.01))
+
+pass
+
+final_nr, preds_nr = model_nr.predict(data.observations)
