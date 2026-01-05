@@ -32,6 +32,8 @@ def scalar_transfer_function(
 
     The shape of the mapping is determined by vx, vy and s and the mapping is a.e. differentiable with respect to each
     of these parameters, thus permitting gradient based optimization.
+
+    In practice, the levels seem to collapse often, which could lead to subpar performance and dying gradient.
     """
     xp = jnp.cumulative_sum(jax.nn.softmax(vx), include_initial=True)
     fp = jnp.cumulative_sum(jax.nn.softmax(vy), include_initial=True)

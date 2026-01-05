@@ -34,25 +34,25 @@ class NAMParameters(NamedTuple):
     @classmethod
     def from_physical(
             cls,
-            area: jnp.ndarray,
-            c_area: jnp.ndarray,
-            cqof: jnp.ndarray,
-            ckif: jnp.ndarray,
-            tof: jnp.ndarray,
-            tif: jnp.ndarray,
-            tg: jnp.ndarray,
-            ck1: jnp.ndarray,
-            ck2: jnp.ndarray,
-            ckbf: jnp.ndarray,
-            c_snow: jnp.ndarray,
-            u_max: jnp.ndarray,
-            l_max: jnp.ndarray,
-            s: jnp.ndarray,
-            u_ratio: jnp.ndarray,
-            l_ratio: jnp.ndarray,
-            qr1: jnp.ndarray,
-            qr2: jnp.ndarray,
-            bf: jnp.ndarray,
+            area: jnp.ndarray = 1055,
+            c_area: jnp.ndarray = 0.9,
+            cqof: jnp.ndarray = 0.3,
+            ckif: jnp.ndarray = 1/20,
+            tof: jnp.ndarray = 0.2,
+            tif: jnp.ndarray = 0.5,
+            tg: jnp.ndarray = 0.5,
+            ck1: jnp.ndarray = jnp.exp(-1/2),
+            ck2: jnp.ndarray = 0,
+            ckbf: jnp.ndarray = jnp.exp(-1/500),
+            c_snow: jnp.ndarray = 2,
+            u_max: jnp.ndarray = 5,
+            l_max: jnp.ndarray = 100,
+            s: jnp.ndarray = 0,
+            u_ratio: jnp.ndarray = 1,
+            l_ratio: jnp.ndarray = 1,
+            qr1: jnp.ndarray = 0.43,
+            qr2: jnp.ndarray = 0,
+            bf: jnp.ndarray = 0.86,
     ):
         return cls(
             area_=inv_softplus(area),
@@ -71,9 +71,9 @@ class NAMParameters(NamedTuple):
             s_=inv_softplus(s),
             u_ratio_=inv_sigmoid(u_ratio),
             l_ratio_=inv_sigmoid(l_ratio),
-            qr1_=inv_sigmoid(qr1),
-            qr2_=inv_sigmoid(qr2),
-            bf_=inv_sigmoid(bf)
+            qr1_=inv_softplus(qr1),
+            qr2_=inv_softplus(qr2),
+            bf_=inv_softplus(bf)
         )
 
     @classmethod
@@ -141,6 +141,21 @@ class NAMParameters(NamedTuple):
         }
         return cls.from_physical(**params)
 
+
+    def update(self, updates: dict[str, jnp.ndarray]):
+        can_be_updated_sigmoid = {"u_ratio", "l_ratio"}
+        can_be_updated_softplus = {"s", "qr1", "qr2", "bf"}
+        self_as_dict = self._asdict()
+        for k in can_be_updated_sigmoid:
+            if k in updates:
+                self_as_dict[k + "_"] = inv_sigmoid(updates[k])
+        for k in can_be_updated_softplus:
+            if k in updates:
+                self_as_dict[k + "_"] = inv_softplus(updates[k])
+
+        return self.__class__(**self_as_dict)
+
+
     @property
     def area(self) -> jnp.ndarray:
         return jax.nn.softplus(self.area_)
@@ -207,15 +222,173 @@ class NAMParameters(NamedTuple):
 
     @property
     def qr1(self) -> jnp.ndarray:
-        return jax.nn.sigmoid(self.qr1_)
+        return jax.nn.softplus(self.qr1_)
 
     @property
     def qr2(self) -> jnp.ndarray:
-        return jax.nn.sigmoid(self.qr2_)
+        return jax.nn.softplus(self.qr2_)
 
     @property
     def bf(self) -> jnp.ndarray:
-        return jax.nn.sigmoid(self.bf_)
+        return jax.nn.softplus(self.bf_)
+
+
+class NAMParametersMock(NamedTuple):
+    area_: jnp.ndarray
+    c_area_: jnp.ndarray
+    cqof_: jnp.ndarray
+    ckif_: jnp.ndarray
+    tof_: jnp.ndarray
+    tif_: jnp.ndarray
+    tg_: jnp.ndarray
+    ck1_: jnp.ndarray
+    ck2_: jnp.ndarray
+    ckbf_: jnp.ndarray
+    c_snow_: jnp.ndarray
+    u_max_: jnp.ndarray
+    l_max_: jnp.ndarray
+
+    s_: jnp.ndarray
+    u_ratio_: jnp.ndarray
+    l_ratio_: jnp.ndarray
+    qr1_: jnp.ndarray
+    qr2_: jnp.ndarray
+    bf_: jnp.ndarray
+
+    @classmethod
+    def from_physical(
+            cls,
+            area: jnp.ndarray = 1055,
+            c_area: jnp.ndarray = 0.9,
+            cqof: jnp.ndarray = 0.3,
+            ckif: jnp.ndarray = 1/20,
+            tof: jnp.ndarray = 0.2,
+            tif: jnp.ndarray = 0.5,
+            tg: jnp.ndarray = 0.5,
+            ck1: jnp.ndarray = jnp.exp(-1/2),
+            ck2: jnp.ndarray = 0,
+            ckbf: jnp.ndarray = jnp.exp(-1/500),
+            c_snow: jnp.ndarray = 2,
+            u_max: jnp.ndarray = 5,
+            l_max: jnp.ndarray = 100,
+            s: jnp.ndarray = 0,
+            u_ratio: jnp.ndarray = 1,
+            l_ratio: jnp.ndarray = 1,
+            qr1: jnp.ndarray = 0.43,
+            qr2: jnp.ndarray = 0,
+            bf: jnp.ndarray = 0.86,
+    ):
+        return cls(
+            area_=area,
+            c_area_=c_area,
+            cqof_=cqof,
+            ckif_=ckif,
+            tof_=tof,
+            tif_=tif,
+            tg_=tg,
+            ck1_=ck1,
+            ck2_=ck2,
+            ckbf_=ckbf,
+            c_snow_=c_snow,
+            u_max_=u_max,
+            l_max_=l_max,
+            s_=s,
+            u_ratio_=u_ratio,
+            l_ratio_=l_ratio,
+            qr1_=qr1,
+            qr2_=qr2,
+            bf_=bf
+        )
+
+    @property
+    def area(self) -> jnp.ndarray:
+        return self.area_
+
+    @property
+    def c_area(self) -> jnp.ndarray:
+        return self.c_area_
+
+    @property
+    def cqof(self) -> jnp.ndarray:
+        return self.cqof_
+
+    @property
+    def ckif(self) -> jnp.ndarray:
+        return self.ckif_
+
+    @property
+    def tof(self) -> jnp.ndarray:
+        return self.tof_
+
+    @property
+    def tif(self) -> jnp.ndarray:
+        return self.tif_
+
+    @property
+    def tg(self) -> jnp.ndarray:
+        return self.tg_
+
+    @property
+    def ck1(self) -> jnp.ndarray:
+        return self.ck1_
+
+    @property
+    def ck2(self) -> jnp.ndarray:
+        return self.ck2_
+
+    @property
+    def ckbf(self) -> jnp.ndarray:
+        return self.ckbf_
+
+    @property
+    def c_snow(self) -> jnp.ndarray:
+        return self.c_snow_
+
+    @property
+    def u_max(self) -> jnp.ndarray:
+        return self.u_max_
+
+    @property
+    def l_max(self) -> jnp.ndarray:
+        return self.l_max_
+
+    @property
+    def s(self) -> jnp.ndarray:
+        return self.s_
+
+    @property
+    def u_ratio(self) -> jnp.ndarray:
+        return self.u_ratio_
+
+    @property
+    def l_ratio(self) -> jnp.ndarray:
+        return self.l_ratio_
+
+    @property
+    def qr1(self) -> jnp.ndarray:
+        return self.qr1_
+
+    @property
+    def qr2(self) -> jnp.ndarray:
+        return self.qr2_
+
+    @property
+    def bf(self) -> jnp.ndarray:
+        return self.bf_
+
+
+    def update(self, updates: dict[str, jnp.ndarray]):
+        can_be_updated_sigmoid = {"u_ratio", "l_ratio"}
+        can_be_updated_softplus = {"s", "qr1", "qr2", "bf"}
+        self_as_dict = self._asdict()
+        for k in can_be_updated_sigmoid:
+            if k in updates:
+                self_as_dict[k + "_"] = updates[k]
+        for k in can_be_updated_softplus:
+            if k in updates:
+                self_as_dict[k + "_"] = updates[k]
+
+        return self.__class__(**self_as_dict)
 
 
 class NAM(HydroModel):
@@ -298,12 +471,12 @@ class NAM(HydroModel):
         qsim = (qr2_out + bf_out) * params.area / 86.4
 
         # Return
-        next_state = params._asdict()
-        next_state.update({
-            "s_": inv_softplus(s_out), "u_ratio_": inv_sigmoid(u_ratio_out), "l_ratio_": inv_sigmoid(l_ratio_out),
-            "qr1_": inv_sigmoid(qr1_out), "qr2_": inv_sigmoid(qr2_out), "bf_": inv_sigmoid(bf_out)
-        })
-        return NAMParameters(**next_state), qsim
+        updates = {
+            "s": s_out, "u_ratio": u_ratio_out, "l_ratio": l_ratio_out,
+            "qr1": qr1_out, "qr2": qr2_out, "bf": bf_out
+        }
+        next_state = params.update(updates)
+        return next_state, qsim
 
 
 

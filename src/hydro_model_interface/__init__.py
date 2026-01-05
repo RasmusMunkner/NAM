@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from tqdm.auto import tqdm
+import warnings
 
 """Hydro API. Here are the rules/design principles:
 
@@ -45,13 +46,16 @@ class HydroModel(abc.ABC):
             optimizer: optax.GradientTransformationExtraArgs = None,
     ):
         self.params: NamedTuple = params
-        if optimizer is None:
-            self.optimizer = optax.sgd(learning_rate=1e-2)
-        else:
-            self.optimizer = optimizer
-        if frozen is not None:
-            self.optimizer = optax.chain(self.optimizer, optax.transforms.freeze(frozen))
-        self.opt_state = self.optimizer.init(self.params)
+        try:
+            if optimizer is None:
+                self.optimizer = optax.sgd(learning_rate=1e-2)
+            else:
+                self.optimizer = optimizer
+            if frozen is not None:
+                self.optimizer = optax.chain(self.optimizer, optax.transforms.freeze(frozen))
+            self.opt_state = self.optimizer.init(self.params)
+        except Exception as e:
+            warnings.warn("Failed to initialize optimizer. Optimization unavailable. Error: {}".format(e))
 
     @staticmethod
     @abc.abstractmethod
@@ -64,6 +68,9 @@ class HydroModel(abc.ABC):
 
     def predict(self, obs: HydroObservation) -> tuple[NamedTuple, jnp.ndarray]:
         return predict(self.params, obs, self.step)
+
+    def predict_nojit(self, obs: HydroObservation) -> tuple[list[NamedTuple], list[jnp.ndarray]]:
+        return predict_nojit(self.params, obs, self.step)
 
     def squared_error(self, obs: HydroObservation, target: jnp.ndarray, reduce: bool = True) -> jnp.ndarray:
         return squared_error(self.params, obs, target, self.step, reduce)
@@ -105,6 +112,24 @@ def predict(
         obs
     )
     return final_state, qsim
+
+
+def predict_nojit(
+        params: NamedTuple,
+        obs: HydroObservation,
+        step_fn: Callable[
+                    [NamedTuple, HydroObservation],
+                    tuple[NamedTuple, jnp.ndarray]
+                ]
+):
+    states, preds = [], []
+    s = params
+    for i in range(len(obs.p)):
+        s,p = step_fn(s, HydroObservation(p=obs.p[i], epot=obs.epot[i], t=obs.t[i]))
+        states.append(s)
+        preds.append(p)
+
+    return states, preds
 
 
 def squared_error(

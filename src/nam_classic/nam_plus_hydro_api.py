@@ -7,7 +7,6 @@ from nam_classic.utils import condition
 class NAMPlus(NAM):
     """Exact replication of the NAM model as it was implemented in excel."""
 
-
     @staticmethod
     def step(
             params: NAMParameters,
@@ -54,12 +53,12 @@ class NAMPlus(NAM):
         qsim = (qr2_out + bf_out) * params.area / 86.4
 
         # Return
-        next_state = params._asdict()
-        next_state.update({
-            "s_": inv_softplus(s_out), "u_ratio_": inv_sigmoid(u_ratio_out), "l_ratio_": inv_sigmoid(l_ratio_out),
-            "qr1_": inv_sigmoid(qr1_out), "qr2_": inv_sigmoid(qr2_out), "bf_": inv_sigmoid(bf_out)
-        })
-        return NAMParameters(**next_state), qsim
+        updates = {
+            "s": s_out, "u_ratio": u_ratio_out, "l_ratio": l_ratio_out,
+            "qr1": qr1_out, "qr2": qr2_out, "bf": bf_out
+        }
+        next_state = params.update(updates)
+        return next_state, qsim
 
 
 
