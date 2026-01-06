@@ -28,6 +28,21 @@ observations = HydroObservation(
 )
 discharge = jnp.array(timeseries["discharge"]).reshape(-1,1)
 
+# Compute train-test split
+train_mask = (timeseries["date"].dt.year <= 1990).to_numpy()
+observations_train = HydroObservation(
+    p = jnp.array(timeseries["precipitation"][train_mask]),
+    epot = jnp.array(timeseries["epot"][train_mask]),
+    t = jnp.array(timeseries["temperature"][train_mask]),
+)
+observations_test = HydroObservation(
+    p = jnp.array(timeseries["precipitation"][~train_mask]),
+    epot = jnp.array(timeseries["epot"][~train_mask]),
+    t = jnp.array(timeseries["temperature"][~train_mask]),
+)
+discharge_train = discharge[train_mask]
+discharge_test = discharge[~train_mask]
+
 # Compute observations converted to the same unit as discharge (m3/s)
 observations_m3s = HydroObservation(
     p = jnp.array(timeseries["precipitation"]) * 1055 / 86.4,

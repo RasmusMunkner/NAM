@@ -411,7 +411,7 @@ class NAM(HydroModel):
                 tg_=False,
                 ck1_=False,
                 ck2_=True,
-                ckbf_=True,
+                ckbf_=False,
                 c_snow_=True,
                 u_max_=False,
                 l_max_=False,
@@ -420,7 +420,7 @@ class NAM(HydroModel):
                 l_ratio_=False,
                 qr1_=False,
                 qr2_=True,
-                bf_=True
+                bf_=False
             )
         super().__init__(params, frozen, optimizer)
 
