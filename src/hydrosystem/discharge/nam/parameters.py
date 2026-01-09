@@ -1,11 +1,9 @@
 import jax
 from jax import numpy as jnp
 from jax import random
-import optax
 import distrax
-from hydro_model_interface import HydroModel, HydroObservation
-from hydro_model_interface.parameters import inv_softplus, inv_sigmoid
-from nam_classic.utils import condition
+from hydrosystem.discharge.nam.math import inv_sigmoid, inv_softplus, threshold_linear
+
 from typing import NamedTuple
 
 
@@ -142,6 +140,31 @@ class NAMParameters(NamedTuple):
         return cls.from_physical(**params)
 
 
+    @classmethod
+    def default_freezemask(cls):
+        return cls(
+                area_=True,
+                c_area_=True,
+                cqof_=False,
+                ckif_=False,
+                tof_=False,
+                tif_=False,
+                tg_=False,
+                ck1_=False,
+                ck2_=True,
+                ckbf_=False,
+                c_snow_=True,
+                u_max_=False,
+                l_max_=False,
+                s_=True,
+                u_ratio_=False,
+                l_ratio_=False,
+                qr1_=False,
+                qr2_=True,
+                bf_=False
+            )
+
+
     def update(self, updates: dict[str, jnp.ndarray]):
         can_be_updated_sigmoid = {"u_ratio", "l_ratio"}
         can_be_updated_softplus = {"s", "qr1", "qr2", "bf"}
@@ -231,263 +254,3 @@ class NAMParameters(NamedTuple):
     @property
     def bf(self) -> jnp.ndarray:
         return jax.nn.softplus(self.bf_)
-
-
-class NAMParametersMock(NamedTuple):
-    area_: jnp.ndarray
-    c_area_: jnp.ndarray
-    cqof_: jnp.ndarray
-    ckif_: jnp.ndarray
-    tof_: jnp.ndarray
-    tif_: jnp.ndarray
-    tg_: jnp.ndarray
-    ck1_: jnp.ndarray
-    ck2_: jnp.ndarray
-    ckbf_: jnp.ndarray
-    c_snow_: jnp.ndarray
-    u_max_: jnp.ndarray
-    l_max_: jnp.ndarray
-
-    s_: jnp.ndarray
-    u_ratio_: jnp.ndarray
-    l_ratio_: jnp.ndarray
-    qr1_: jnp.ndarray
-    qr2_: jnp.ndarray
-    bf_: jnp.ndarray
-
-    @classmethod
-    def from_physical(
-            cls,
-            area: jnp.ndarray = 1055,
-            c_area: jnp.ndarray = 0.9,
-            cqof: jnp.ndarray = 0.3,
-            ckif: jnp.ndarray = 1/20,
-            tof: jnp.ndarray = 0.2,
-            tif: jnp.ndarray = 0.5,
-            tg: jnp.ndarray = 0.5,
-            ck1: jnp.ndarray = jnp.exp(-1/2),
-            ck2: jnp.ndarray = 0,
-            ckbf: jnp.ndarray = jnp.exp(-1/500),
-            c_snow: jnp.ndarray = 2,
-            u_max: jnp.ndarray = 5,
-            l_max: jnp.ndarray = 100,
-            s: jnp.ndarray = 0,
-            u_ratio: jnp.ndarray = 1,
-            l_ratio: jnp.ndarray = 1,
-            qr1: jnp.ndarray = 0.43,
-            qr2: jnp.ndarray = 0,
-            bf: jnp.ndarray = 0.86,
-    ):
-        return cls(
-            area_=area,
-            c_area_=c_area,
-            cqof_=cqof,
-            ckif_=ckif,
-            tof_=tof,
-            tif_=tif,
-            tg_=tg,
-            ck1_=ck1,
-            ck2_=ck2,
-            ckbf_=ckbf,
-            c_snow_=c_snow,
-            u_max_=u_max,
-            l_max_=l_max,
-            s_=s,
-            u_ratio_=u_ratio,
-            l_ratio_=l_ratio,
-            qr1_=qr1,
-            qr2_=qr2,
-            bf_=bf
-        )
-
-    @property
-    def area(self) -> jnp.ndarray:
-        return self.area_
-
-    @property
-    def c_area(self) -> jnp.ndarray:
-        return self.c_area_
-
-    @property
-    def cqof(self) -> jnp.ndarray:
-        return self.cqof_
-
-    @property
-    def ckif(self) -> jnp.ndarray:
-        return self.ckif_
-
-    @property
-    def tof(self) -> jnp.ndarray:
-        return self.tof_
-
-    @property
-    def tif(self) -> jnp.ndarray:
-        return self.tif_
-
-    @property
-    def tg(self) -> jnp.ndarray:
-        return self.tg_
-
-    @property
-    def ck1(self) -> jnp.ndarray:
-        return self.ck1_
-
-    @property
-    def ck2(self) -> jnp.ndarray:
-        return self.ck2_
-
-    @property
-    def ckbf(self) -> jnp.ndarray:
-        return self.ckbf_
-
-    @property
-    def c_snow(self) -> jnp.ndarray:
-        return self.c_snow_
-
-    @property
-    def u_max(self) -> jnp.ndarray:
-        return self.u_max_
-
-    @property
-    def l_max(self) -> jnp.ndarray:
-        return self.l_max_
-
-    @property
-    def s(self) -> jnp.ndarray:
-        return self.s_
-
-    @property
-    def u_ratio(self) -> jnp.ndarray:
-        return self.u_ratio_
-
-    @property
-    def l_ratio(self) -> jnp.ndarray:
-        return self.l_ratio_
-
-    @property
-    def qr1(self) -> jnp.ndarray:
-        return self.qr1_
-
-    @property
-    def qr2(self) -> jnp.ndarray:
-        return self.qr2_
-
-    @property
-    def bf(self) -> jnp.ndarray:
-        return self.bf_
-
-
-    def update(self, updates: dict[str, jnp.ndarray]):
-        can_be_updated_sigmoid = {"u_ratio", "l_ratio"}
-        can_be_updated_softplus = {"s", "qr1", "qr2", "bf"}
-        self_as_dict = self._asdict()
-        for k in can_be_updated_sigmoid:
-            if k in updates:
-                self_as_dict[k + "_"] = updates[k]
-        for k in can_be_updated_softplus:
-            if k in updates:
-                self_as_dict[k + "_"] = updates[k]
-
-        return self.__class__(**self_as_dict)
-
-
-class NAM(HydroModel):
-    """Exact replication of the NAM model as it was implemented in excel."""
-
-    def __init__(
-            self,
-            params: NAMParameters,
-            frozen: NamedTuple = None
-    ):
-        if frozen is None:
-            frozen = NAMParameters(
-                area_=True,
-                c_area_=True,
-                cqof_=False,
-                ckif_=False,
-                tof_=False,
-                tif_=False,
-                tg_=False,
-                ck1_=False,
-                ck2_=True,
-                ckbf_=False,
-                c_snow_=True,
-                u_max_=False,
-                l_max_=False,
-                s_=True,
-                u_ratio_=False,
-                l_ratio_=False,
-                qr1_=False,
-                qr2_=True,
-                bf_=False
-            )
-        super().__init__(params, frozen)
-
-
-    @staticmethod
-    def step(
-            params: NAMParameters,
-            obs: HydroObservation
-    ):
-        # Decide if precipitation is rain or snow
-        rain, snow = obs.p * (obs.t > 0), obs.p * (obs.t < 0)  # Note the mistake for t=0.
-
-        # Settle snow budget
-        snowmelt = jnp.maximum(0, jnp.minimum(params.c_snow * obs.t, params.s))
-        s_out = params.s + snow - snowmelt
-
-        # Settle surface water budget
-        u = params.u_ratio * params.u_max
-        u_budget = u + rain + snowmelt  # total water available after rain+snowmelt
-        u_budget_no_rain = u + snowmelt  # total water available, discounting rain
-
-        e_p = jnp.minimum(u_budget_no_rain, obs.epot)  # Follows excel, but I think it should include rain
-        u_budget -= e_p
-        # min of (estimate, energy constraint, (mass constraint???, missing???)) - Likely ok, talked to lecturer
-        e_a = jnp.minimum(params.l_ratio * obs.epot,obs.epot - e_p)
-
-        # Follows excel, but why not just use u_budget?
-        q_interflow = params.ckif * condition(params.l_ratio,params.tif) * u
-        q_interflow = jnp.minimum(q_interflow, u_budget_no_rain - e_p)
-        u_budget -= q_interflow
-
-        excess = jnp.maximum(0, u_budget - params.u_max)
-        q_overflow = params.cqof * condition(params.l_ratio, params.tof) * excess
-        u_ratio_out = (u_budget - excess) / params.u_max
-
-        # Settle lower zone budget
-        percolation = (excess - q_overflow) * condition(params.l_ratio, params.tg)
-        dl = excess - q_overflow - percolation
-        l_ratio_out = params.l_ratio + (dl - e_a) / params.l_max
-
-        # Calculate flows
-        qr1_out = params.qr1 * params.ck1 + (q_overflow + q_interflow) * (1 - params.ck1)
-        qr2_out = params.qr2 * params.ck2 + qr1_out * (1 - params.ck2)
-        bf_out = params.bf * params.ckbf + percolation * (1 - params.ckbf) * params.c_area
-
-        # Calculate simulated discharge
-        # params.area rescaled from mm/d to m3/s. Note the /86.4 handles the time rescaling.
-        qsim = (qr2_out + bf_out) * params.area / 86.4
-
-        # Return
-        updates = {
-            "s": s_out, "u_ratio": u_ratio_out, "l_ratio": l_ratio_out,
-            "qr1": qr1_out, "qr2": qr2_out, "bf": bf_out
-        }
-        next_state = params.update(updates)
-        return next_state, qsim
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

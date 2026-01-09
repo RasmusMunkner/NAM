@@ -45,7 +45,6 @@ class HydroModel(abc.ABC):
             self,
             params: NamedTuple,
             frozen: NamedTuple = None,
-            optimizer: optax.GradientTransformationExtraArgs = None,
     ):
         self.params: NamedTuple = params
         self.frozen = frozen
