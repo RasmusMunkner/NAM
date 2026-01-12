@@ -179,6 +179,26 @@ class NAMParameters(NamedTuple):
         return self.__class__(**self_as_dict)
 
 
+    def total_water_stored(self):
+        """Calculate the total amount of water released over an infinite horizon with no water input.
+
+        The key part of the calculation is the routing parameters.
+        Water stored in qr1/qr2/bf is released over an infinite horizon weighted by a geometric series.
+        These stores are recharged via (interflow+overflow)*(1-w)*(geometric series), hence recharge passes through.
+        This means that we can just route s/u/l right through with no weighting. However, the (1-w) factor is
+        never applied to initial storage, which is especially important for baseflow. Hence adjustments are needed.
+        The correct adjustment is bf0 * w/(1-w), since it is never multiplied by (1-w).
+        """
+        total = 0
+        total += self.u_max * self.u_ratio
+        total += self.l_max * self.l_ratio
+        total += self.s
+        total += self.ck1 / (1 - self.ck1) * self.qr1
+        total += self.ck2 / (1 - self.ck2) * self.qr2
+        total += self.ckbf / (1 - self.ckbf) * self.bf
+        return total
+
+
     @property
     def area(self) -> jnp.ndarray:
         return jax.nn.softplus(self.area_)

@@ -61,7 +61,9 @@ def step_excel(
     }
     next_state = params.update(updates)
     target = NAMTarget(
-        q=qsim, eact=e_p + e_a, perc=percolation
+        q=qsim, eact=e_p + e_a, perc=percolation*(1-params.c_area),
+        storage=next_state.total_water_stored(),
+        recharge=params.ckbf * (bf_out - params.bf) / (1 - params.ckbf),
     )
     return next_state, target
 
@@ -118,7 +120,9 @@ def step(
     }
     next_state = params.update(updates)
     target = NAMTarget(
-        q=qsim, eact=e_p+e_a, perc=percolation
+        q=qsim, eact=e_p+e_a, perc=percolation*(1-params.c_area),
+        storage=next_state.total_water_stored(),
+        recharge=params.ckbf * (bf_out - params.bf) / (1 - params.ckbf),
     )
     return next_state, target
 

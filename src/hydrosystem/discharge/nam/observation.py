@@ -34,28 +34,28 @@ class NAMTarget(NamedTuple):
     q: Float[Any, "dim"]
     eact: Float[Any, "dim"]
     perc: Float[Any, "dim"]
+    recharge: Float[Any, "dim"]
+    storage: Float[Any, "dim"]
 
     @classmethod
-    def from_partial(cls, q: Float[Any, "dim"] = None, eact: Float[Any, "dim"] = None, perc: Float[Any, "dim"] = None):
+    def from_partial(
+            cls,
+            q: Float[Any, "dim"],
+            eact: Float[Any, "dim"] = None,
+            perc: Float[Any, "dim"] = None,
+            storage: Float[Any, "dim"] = None,
+    ):
         """Build a hydrological target vector from partial outputs."""
-        if q is None and eact is None and perc is None:
-            raise ValueError("Either q or eact or perc must be given.")
-        if q is not None:
-            target_shape = q.shape
-        elif eact is not None:
-            target_shape = eact.shape
-        else:
-            target_shape = perc.shape
-
-        for x in [q, eact, perc]:
+        for x in [q, eact, perc, storage]:
             if x is not None:
-                if x.shape != target_shape:
+                if x.shape != q.shape:
                     raise ValueError('NAMTarget fields must have identical shapes.')
 
         return cls(
-            q = jnp.asarray(q) if q is not None else jnp.full(target_shape, jnp.nan),
-            eact = jnp.asarray(eact) if eact is not None else jnp.full(target_shape, jnp.nan),
-            perc = jnp.asarray(perc) if perc is not None else jnp.full(target_shape, jnp.nan)
+            q = jnp.asarray(q),
+            eact = jnp.asarray(eact) if eact is not None else jnp.full(q.shape, jnp.nan),
+            perc = jnp.asarray(perc) if perc is not None else jnp.full(q.shape, jnp.nan),
+            storage = jnp.asarray(storage) if storage is not None else jnp.full(q.shape, jnp.nan),
         )
 
 
