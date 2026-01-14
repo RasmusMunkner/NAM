@@ -44,6 +44,7 @@ class NAMTarget(NamedTuple):
             eact: Float[Any, "dim"] = None,
             perc: Float[Any, "dim"] = None,
             storage: Float[Any, "dim"] = None,
+            recharge: Float[Any, "dim"] = None,
     ):
         """Build a hydrological target vector from partial outputs."""
         for x in [q, eact, perc, storage]:
@@ -56,6 +57,7 @@ class NAMTarget(NamedTuple):
             eact = jnp.asarray(eact) if eact is not None else jnp.full(q.shape, jnp.nan),
             perc = jnp.asarray(perc) if perc is not None else jnp.full(q.shape, jnp.nan),
             storage = jnp.asarray(storage) if storage is not None else jnp.full(q.shape, jnp.nan),
+            recharge= jnp.asarray(recharge) if recharge is not None else jnp.full(q.shape, jnp.nan),
         )
 
 
