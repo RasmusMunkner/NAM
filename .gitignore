@@ -1,3 +1,10 @@
+demo/
+report/
+test/
+src/nested_resevoirs/
+src/nam_classic
+src/hydro_model_interface
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
